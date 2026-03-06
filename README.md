@@ -1,70 +1,99 @@
 #!/bin/bash
+
 # =========================================================
-# IGOR OS v7.0 - THE GENESIS (Account Creation Edition)
+# IGOR OS v7.0 - THE GENESIS (Master Build Script)
+# Archi põhi | Qortal Auth | Eesti Edition
 # =========================================================
 
-# ... (baasseaded jäävad samaks, mis v6.5-s) ...
+# 1. EHITUSKESKKONNA ETTEVALMISTUS
+echo "[-] Paigaldame vajalikud tööriistad..."
+sudo pacman -S --needed archiso git wget curl --noconfirm
 
-# 1. TÄIENDATUD SISSELOGIMISAKEN (Create Account funktsiooniga)
+BUILD_DIR="igor_iso_factory"
+rm -rf $BUILD_DIR
+mkdir -p $BUILD_DIR
+cp -r /usr/share/archiso/configs/releng/* $BUILD_DIR/
+cd $BUILD_DIR
+
+# 2. SÜSTEEMI PAKETID
+echo "[-] Defineerime tarkvara (Cinnamon + Qortal valmidus)..."
+cat <<EOT >> packages.x86_64
+cinnamon
+lightdm
+lightdm-webkit2-greeter
+pipewire
+pipewire-pulse
+networkmanager
+jre-openjdk
+python-requests
+wget
+curl
+git
+EOT
+
+# 3. QORTAL GENESIS LOGIN SCREEN (Sinu pildi stiilis)
+echo "[-] Loome Qortal Authentication liidese..."
 mkdir -p airootfs/usr/share/lightdm-webkit/themes/igor-qortal/
 cat <<'EOF' > airootfs/usr/share/lightdm-webkit/themes/igor-qortal/index.html
 <html>
 <head>
     <style>
         body { background-color: #0d1117; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
-        .auth-card { background: #161b22; border: 1px solid #30363d; padding: 30px; border-radius: 12px; width: 450px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; }
-        .btn-login { background: #238636; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; }
-        .btn-create { background: transparent; color: #58a6ff; border: 1px solid #58a6ff; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; margin-top: 15px; }
-        .seed-box { display: none; background: #000; border: 1px dashed #f1e05a; padding: 15px; margin-top: 10px; font-family: monospace; }
+        .auth-card { background: #161b22; border: 1px solid #30363d; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        h1 { font-size: 24px; margin-bottom: 5px; }
+        .nonce { color: #58a6ff; font-family: monospace; font-size: 10px; margin-bottom: 20px; word-break: break-all; opacity: 0.7; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; box-sizing: border-box; }
+        .btn-login { width: 100%; padding: 12px; background: #238636; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 16px; }
+        .btn-login:hover { background: #2ea043; }
+        .btn-create { background: none; border: none; color: #58a6ff; cursor: pointer; margin-top: 15px; font-size: 14px; text-decoration: underline; }
     </style>
 </head>
 <body>
-    <div class="auth-card" id="main-card">
+    <div class="auth-card">
         <h1>Igor OS</h1>
-        <p style="color: #8b949e;">Qortal Identity Access</p>
-        
-        <div id="login-section">
-            <input type="password" id="pass" placeholder="Qortal Backup Password">
-            <button class="btn-login" onclick="login()">Login</button>
-            <button class="btn-create" onclick="showCreate()">Create New Identity</button>
-        </div>
-
-        <div id="create-section" style="display:none;">
-            <h3>New Wallet Seed</h3>
-            <div class="seed-box" id="seed-phrase" style="display:block;">Generating...</div>
-            <p style="font-size: 11px; color: #f85149;">WRITE THIS DOWN! This is your only access to Igor OS.</p>
-            <button class="btn-login" onclick="finalizeCreate()">I Saved It, Let's Go!</button>
-        </div>
+        <div class="nonce">Challenge: A5-XAeuNc0HD1BLEz3pvgGA3z8qsqBAF</div>
+        <div style="text-align: left; font-size: 14px; color: #8b949e; margin-bottom: 5px;">Backup Password</div>
+        <input type="password" id="pass" placeholder="Enter password">
+        <button class="btn-login" onclick="window.lightdm.authenticate(null)">Continue With Saved Account</button>
+        <button class="btn-create" onclick="alert('Uue identiteedi loomine käivitub...')">Create New Identity</button>
     </div>
-
-    <script>
-        function showCreate() {
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('create-section').style.display = 'block';
-            // Siin kutsub API-t, et genereerida uus 12-sõnaline seed
-            document.getElementById('seed-phrase').innerText = "apple banana cherry dog elephant fox goat house ice jump kite lion"; 
-        }
-
-        function login() { window.lightdm.authenticate(null); }
-        function finalizeCreate() { location.reload(); }
-    </script>
 </body>
 </html>
 EOF
 
-# 2. PAIGALDAJA TÄIENDUS (Genereerib vajadusel uue Linuxi kasutaja Qortali põhiselt)
-cat <<'EOF' >> airootfs/root/install_igoros.sh
-# Igor OS User Provisioning
-echo "Setting up auto-user-creation based on Qortal auth..."
-# Skript, mis lennult teeb kasutaja kui Qortal auth õnnestub
-cat <<'USER_EOF' > /usr/local/bin/igor-user-gen
+# 4. INSTALLERI SKRIPT (See, mis seadistab süsteemi pärast installi)
+echo "[-] Loome süsteemi seadistaja (Eesti lipp + Paneel paremal)..."
+mkdir -p airootfs/root/
+cat <<'EOF' > airootfs/root/install_igoros.sh
 #!/bin/bash
-# Kui kasutajat pole, loo see Qortal ID põhjal
-if ! id "$1" &>/dev/null; then
-    useradd -m -G wheel,video,audio -s /bin/bash "$1"
-    echo "Welcome to Igor OS, $1"
-fi
-USER_EOF
-chmod +x /usr/local/bin/igor-user-gen
+echo "--- IGOR OS v7.0 FINALIZING INSTALL ---"
+
+# 1. QORTAL NATIVE CORE
+mkdir -p /opt/qortal
+cd /opt/qortal
+bash <(curl -fsSL https://link.qortal.dev/linux-script || wget -qO- https://link.qortal.dev/linux-script)
+
+# 2. EESTI LOKAAT JA PANEEL PAREMALE
+localectl set-x11-keymap ee
+# Rakendame paneeli asukoha ja musta teema
+sudo -u $(logname) dbus-launch gsettings set org.cinnamon panels-enabled "['1:0:right']"
+sudo -u $(logname) dbus-launch gsettings set org.cinnamon.desktop.interface gtk-theme 'Adwaita-dark'
+
+# 3. EESTI LIPP MENÜÜSSE
+mkdir -p /usr/share/igoros/
+curl -L -o /usr/share/igoros/estonia.png https://upload.wikimedia.org/wikipedia/commons/thumb/8/8f/Flag_of_Estonia.svg/32px-Flag_of_Estonia.svg.png
+sudo -u $(logname) dbus-launch gsettings set org.cinnamon.applets.menu@cinnamon.org menu-icon "/usr/share/igoros/estonia.png"
+
+# 4. LOGIN SCREENI AKTIVEERIMINE
+sed -i 's/greeter-session=.*/greeter-session=lightdm-webkit2-greeter/g' /etc/lightdm/lightdm.conf
+echo -e "[greeter]\nwebkit_theme = igor-qortal" > /etc/lightdm/lightdm-webkit2-greeter.conf
+systemctl enable lightdm
+systemctl enable NetworkManager
+
+echo "INSTALL TEHTUD. REBOOT!"
 EOF
+chmod +x airootfs/root/install_igoros.sh
+
+# 5. ISO KÜPSETAMINE
+echo "[-] Ehitame ISO-faili (see võib võtta aega)..."
+sudo mkarchiso -v -w work/ -o out/ .
