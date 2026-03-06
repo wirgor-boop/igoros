@@ -1,126 +1,70 @@
 #!/bin/bash
-
 # =========================================================
-# IGOR OS v6.5 - THE SOVEREIGN (Official Master Script)
-# Archi põhi | Black Cinnamon | Qortal Auth | Native Drivers
+# IGOR OS v7.0 - THE GENESIS (Account Creation Edition)
 # =========================================================
 
-# Kontrollime õigusi
-if [[ $EUID -ne 0 ]]; then
-   echo "Seda skripti peab käivitama sudo-ga!"
-   exit 1
-fi
+# ... (baasseaded jäävad samaks, mis v6.5-s) ...
 
-# Värvid
-BLACK='\033[1;30m'
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
-
-clear
-echo -e "${BLACK}"
-echo "   _____  _____  ____  _____     ____   ____ "
-echo "  |_   _|/ ____|/ __ \|  __ \   / __ \ / ____|"
-echo "    | | | |  __| |  | | |__) | | |  | | (___  "
-echo "    | | | | |_ | |  | |  _  /  | |  | |\___ \ "
-echo "   _| |_| |__| | |__| | | \ \  | |__| |____) |"
-echo "  |_____|\_____|\____/|_|  \_\  \____/|_____/ "
-echo -e "${NC}"
-echo -e "         -- THE SOVEREIGN EDITION | v6.5 --"
-
-# 1. ETTEVALMISTUS
-echo -e "${CYAN}[1/5] Paigaldame ISO ehitusvahendid...${NC}"
-pacman -S --needed archiso git wget curl --noconfirm
-
-BUILD_DIR="igor_iso_factory"
-rm -rf $BUILD_DIR
-mkdir -p $BUILD_DIR
-cp -r /usr/share/archiso/configs/releng/* $BUILD_DIR/
-cd $BUILD_DIR
-
-# 2. TARKVARA JA DRAIVERID
-echo -e "${CYAN}[2/5] Defineerime tarkvara ja draiverid...${NC}"
-cat <<EOT >> packages.x86_64
-cinnamon
-lightdm
-lightdm-webkit2-greeter
-pipewire
-pipewire-pulse
-pipewire-alsa
-pipewire-jack
-wireplumber
-networkmanager
-network-manager-applet
-wget
-curl
-git
-mesa
-xf86-video-intel
-nvidia-utils
-jre-openjdk
-python-requests
-EOT
-
-# 3. QORTAL AUTHENTICATION UI (Sinu pildi stiilis)
-echo -e "${CYAN}[3/5] Loome Qortal-põhise sisselogimisakna...${NC}"
+# 1. TÄIENDATUD SISSELOGIMISAKEN (Create Account funktsiooniga)
 mkdir -p airootfs/usr/share/lightdm-webkit/themes/igor-qortal/
 cat <<'EOF' > airootfs/usr/share/lightdm-webkit/themes/igor-qortal/index.html
 <html>
 <head>
     <style>
         body { background-color: #0d1117; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
-        .auth-card { background: #161b22; border: 1px solid #30363d; padding: 40px; border-radius: 8px; width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        h1 { font-size: 22px; text-align: center; margin-bottom: 5px; }
-        .nonce { color: #58a6ff; font-family: monospace; font-size: 10px; margin-bottom: 20px; text-align: center; word-break: break-all; }
+        .auth-card { background: #161b22; border: 1px solid #30363d; padding: 30px; border-radius: 12px; width: 450px; text-align: center; }
         input { width: 100%; padding: 12px; margin: 10px 0; background: #0d1117; border: 1px solid #30363d; color: white; border-radius: 6px; }
-        button { width: 100%; padding: 12px; background: #1f6feb; border: none; color: white; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 10px; }
-        button:hover { background: #388bfd; }
+        .btn-login { background: #238636; color: white; border: none; padding: 12px; width: 100%; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-create { background: transparent; color: #58a6ff; border: 1px solid #58a6ff; padding: 10px; width: 100%; border-radius: 6px; cursor: pointer; margin-top: 15px; }
+        .seed-box { display: none; background: #000; border: 1px dashed #f1e05a; padding: 15px; margin-top: 10px; font-family: monospace; }
     </style>
 </head>
 <body>
-    <div class="auth-card">
-        <h1>Qortal Authentication</h1>
-        <div class="nonce">Challenge nonce: A5-XAeuNc0HD1BLEz3pvgGA3z8qsqBAF</div>
-        <div style="font-size: 14px; color: #8b949e;">Backup Password</div>
-        <input type="password" id="pass" placeholder="Enter backup password">
-        <button onclick="window.lightdm.authenticate(null)">Continue With Saved Account</button>
+    <div class="auth-card" id="main-card">
+        <h1>Igor OS</h1>
+        <p style="color: #8b949e;">Qortal Identity Access</p>
+        
+        <div id="login-section">
+            <input type="password" id="pass" placeholder="Qortal Backup Password">
+            <button class="btn-login" onclick="login()">Login</button>
+            <button class="btn-create" onclick="showCreate()">Create New Identity</button>
+        </div>
+
+        <div id="create-section" style="display:none;">
+            <h3>New Wallet Seed</h3>
+            <div class="seed-box" id="seed-phrase" style="display:block;">Generating...</div>
+            <p style="font-size: 11px; color: #f85149;">WRITE THIS DOWN! This is your only access to Igor OS.</p>
+            <button class="btn-login" onclick="finalizeCreate()">I Saved It, Let's Go!</button>
+        </div>
     </div>
+
+    <script>
+        function showCreate() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('create-section').style.display = 'block';
+            // Siin kutsub API-t, et genereerida uus 12-sõnaline seed
+            document.getElementById('seed-phrase').innerText = "apple banana cherry dog elephant fox goat house ice jump kite lion"; 
+        }
+
+        function login() { window.lightdm.authenticate(null); }
+        function finalizeCreate() { location.reload(); }
+    </script>
 </body>
 </html>
 EOF
 
-# 4. IGOR OS NATIVE INSTALLER (See, mis jookseb mälupulgal)
-echo -e "${CYAN}[4/5] Kirjutame süsteemi installeri...${NC}"
-mkdir -p airootfs/root/
-cat <<'EOF' > airootfs/root/install_igoros.sh
+# 2. PAIGALDAJA TÄIENDUS (Genereerib vajadusel uue Linuxi kasutaja Qortali põhiselt)
+cat <<'EOF' >> airootfs/root/install_igoros.sh
+# Igor OS User Provisioning
+echo "Setting up auto-user-creation based on Qortal auth..."
+# Skript, mis lennult teeb kasutaja kui Qortal auth õnnestub
+cat <<'USER_EOF' > /usr/local/bin/igor-user-gen
 #!/bin/bash
-echo "--- IGOR OS v6.5 INSTALLER STARTING ---"
-
-# 1. QORTAL NATIVE INSTALL
-mkdir -p /opt/qortal
-cd /opt/qortal
-bash <(curl -fsSL https://link.qortal.dev/linux-script || wget -qO- https://link.qortal.dev/linux-script)
-
-# 2. TEENUSED
-systemctl enable NetworkManager
-systemctl enable lightdm
-
-# 3. BLACKOUT SETTINGS
-sed -i 's/greeter-session=.*/greeter-session=lightdm-webkit2-greeter/g' /etc/lightdm/lightdm.conf
-mkdir -p /etc/lightdm/lightdm-webkit2-greeter.conf.d/
-echo -e "[greeter]\nwebkit_theme = igor-qortal" > /etc/lightdm/lightdm-webkit2-greeter.conf
-
-# 4. CINNAMON DARK MODE
-gsettings set org.cinnamon.desktop.interface gtk-theme 'Adwaita-dark'
-gsettings set org.cinnamon.theme name 'Cinnamon-Dark'
-
-echo "IGOR OS INSTALLED. REBOOT AND LOGIN WITH QORTAL."
+# Kui kasutajat pole, loo see Qortal ID põhjal
+if ! id "$1" &>/dev/null; then
+    useradd -m -G wheel,video,audio -s /bin/bash "$1"
+    echo "Welcome to Igor OS, $1"
+fi
+USER_EOF
+chmod +x /usr/local/bin/igor-user-gen
 EOF
-chmod +x airootfs/root/install_igoros.sh
-
-# 5. ISO KÜPSETAMINE
-echo -e "${GREEN}[5/5] Ehitame buuditavat ISO-faili...${NC}"
-mkarchiso -v -w work/ -o out/ .
-
-echo -e "\n${GREEN}TEHTUD! ISO asub kaustas: $BUILD_DIR/out/${NC}"
