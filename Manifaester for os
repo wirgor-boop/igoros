@@ -1,0 +1,4 @@
+{
+"action": "image_generation",
+"action_input": "{'prompt': "A minimalist and powerful logo for 'Igor OS'. The design features a stylized, sharp-edged letter 'I' or a shield shape in matte black and deep charcoal grey. In the background, there's a subtle hint of the Estonian flag colors (blue, black, white) integrated as a thin, glowing neon line or a small accent. The overall vibe is 'Sovereign', 'Decentralized', and 'Cyberpunk', set against a solid pitch-black background. High contrast, clean lines, professional software brand style.", 'aspect_ratio': '1:1'}"
+}
